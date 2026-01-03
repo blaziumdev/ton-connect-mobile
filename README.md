@@ -1,18 +1,20 @@
-# TON Connect Mobile SDK
+# @blazium/ton-connect-mobile
 
-Production-ready TON Connect Mobile SDK for React Native and Expo. This SDK implements the real TonConnect protocol for mobile applications using deep links and callbacks.
+Production-ready TON Connect Mobile SDK for React Native and Expo. Implements the real TonConnect protocol for mobile applications using deep links and callbacks.
+
+**Full compatibility with `@tonconnect/ui-react` API** - Use the same hooks, components, and functions you're familiar with!
 
 ## Features
 
-- ✅ **Real TonConnect Protocol** - Implements the actual protocol, not a mock
-- ✅ **Deep Link Wallet Connection** - Connect to wallets via deep links
+- ✅ **Full `@tonconnect/ui-react` Compatibility** - Drop-in replacement
+- ✅ **React Native & Expo Support** - Works with both Expo and React Native CLI
+- ✅ **Android & iOS Support** - Full deep linking support
+- ✅ **Multiple Wallet Support** - Tonkeeper, Tonhub, MyTonWallet, Telegram Wallet
+- ✅ **Transaction Signing** - Send transactions with wallet approval
+- ✅ **Data Signing** - Sign arbitrary data for authentication
 - ✅ **Session Persistence** - Maintains connection across app restarts
-- ✅ **Transaction Signing** - Send and sign transactions
-- ✅ **Signature Verification** - Verifies wallet signatures
-- ✅ **Cross-Platform** - Works with Expo Managed, Expo Bare, and React Native CLI
-- ⚠️ **Web Limitation** - Deep links (`tonconnect://`) only work on mobile devices (Android/iOS), not in web browsers
-- ✅ **TypeScript** - Fully typed with TypeScript
-- ✅ **Production Ready** - No placeholders, no mocks, ready for production use
+- ✅ **TypeScript** - Full type safety
+- ✅ **Production Ready** - Battle-tested implementation
 
 ## Installation
 
@@ -20,113 +22,266 @@ Production-ready TON Connect Mobile SDK for React Native and Expo. This SDK impl
 npm install @blazium/ton-connect-mobile
 ```
 
-### Required Dependencies
-
-**IMPORTANT**: You must install `react-native-get-random-values` for secure random number generation:
-
-```bash
-npm install react-native-get-random-values
-```
-
-Then import it at the very top of your entry file (before any other imports):
-
-```typescript
-import 'react-native-get-random-values';
-// ... other imports
-```
-
 ### Peer Dependencies
 
-The SDK requires one of the following storage solutions:
-
-- `@react-native-async-storage/async-storage` (for React Native CLI)
-- Expo's built-in AsyncStorage (for Expo)
-
-For Expo projects, also install:
-
 ```bash
-npx expo install expo-linking expo-crypto @react-native-async-storage/async-storage
+# For Expo projects
+npm install expo-linking expo-crypto @react-native-async-storage/async-storage
+
+# For React Native CLI projects
+npm install @react-native-async-storage/async-storage react-native-get-random-values
 ```
 
-## Usage
+## Quick Start
 
-### Basic Setup
+### React Integration (Recommended - @tonconnect/ui-react Compatible)
+
+```typescript
+import { TonConnectUIProvider, useTonConnectUI, useTonWallet, TonConnectButton } from '@blazium/ton-connect-mobile/react';
+
+function App() {
+  return (
+    <TonConnectUIProvider
+      config={{
+        manifestUrl: 'https://yourdomain.com/tonconnect-manifest.json',
+        scheme: 'myapp',
+      }}
+    >
+      <YourApp />
+    </TonConnectUIProvider>
+  );
+}
+
+function YourApp() {
+  const tonConnectUI = useTonConnectUI();
+  const wallet = useTonWallet();
+
+  return (
+    <View>
+      <TonConnectButton />
+      {wallet?.connected && (
+        <Text>Connected: {wallet.account?.address}</Text>
+      )}
+    </View>
+  );
+}
+```
+
+### Direct SDK Usage
 
 ```typescript
 import { TonConnectMobile } from '@blazium/ton-connect-mobile';
 
 const ton = new TonConnectMobile({
-  manifestUrl: 'https://example.com/tonconnect-manifest.json',
-  scheme: 'myapp', // Your app's deep link scheme
+  manifestUrl: 'https://yourdomain.com/tonconnect-manifest.json',
+  scheme: 'myapp',
+});
+
+// Connect to wallet
+const wallet = await ton.connect();
+
+// Send transaction
+const response = await ton.sendTransaction({
+  validUntil: Date.now() + 5 * 60 * 1000,
+  messages: [
+    {
+      address: 'EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIo',
+      amount: '10000000', // 0.01 TON
+    },
+  ],
+});
+
+// Sign data
+const signed = await ton.signData('Hello, TON!', '1.0');
+
+// Disconnect
+await ton.disconnect();
+```
+
+## React Integration API
+
+### Components
+
+#### `TonConnectUIProvider`
+
+React context provider that wraps your app and provides TON Connect functionality.
+
+```typescript
+<TonConnectUIProvider config={config}>
+  <YourApp />
+</TonConnectUIProvider>
+```
+
+#### `TonConnectButton`
+
+Pre-built button component for connecting/disconnecting wallets.
+
+```typescript
+<TonConnectButton
+  text="Connect Wallet"
+  connectedText="Disconnect"
+  onPress={() => {
+    // Custom handler (optional)
+  }}
+/>
+```
+
+### Hooks
+
+#### `useTonConnectUI()`
+
+Access the TonConnectUI instance with all methods.
+
+```typescript
+const tonConnectUI = useTonConnectUI();
+
+// Methods:
+await tonConnectUI.connectWallet();
+await tonConnectUI.disconnect();
+await tonConnectUI.sendTransaction({ ... });
+await tonConnectUI.signData({ data: '...', version: '1.0' });
+await tonConnectUI.openModal();
+tonConnectUI.closeModal();
+```
+
+#### `useTonWallet()`
+
+Get current wallet state.
+
+```typescript
+const wallet = useTonWallet();
+
+// wallet?.connected - boolean
+// wallet?.account?.address - string
+// wallet?.account?.publicKey - string
+// wallet?.account?.chain - number
+// wallet?.wallet?.name - string
+```
+
+#### `useTonConnectModal()`
+
+Access modal state and controls.
+
+```typescript
+const modal = useTonConnectModal();
+
+// modal.open - boolean
+// modal.openModal() - Promise<void>
+// modal.close() - void
+```
+
+#### `useTonConnectSDK()`
+
+Access the underlying SDK instance for advanced usage.
+
+```typescript
+const sdk = useTonConnectSDK();
+
+// Advanced methods:
+sdk.setPreferredWallet('Tonhub');
+sdk.getSupportedWallets();
+```
+
+## Direct SDK API
+
+### `TonConnectMobile`
+
+Main SDK class.
+
+#### Constructor
+
+```typescript
+new TonConnectMobile(config: TonConnectMobileConfig)
+```
+
+**Config Options:**
+
+- `manifestUrl` (required): URL to your TonConnect manifest file
+- `scheme` (required): Your app's deep link scheme
+- `storageKeyPrefix` (optional): Prefix for storage keys (default: `'tonconnect_'`)
+- `connectionTimeout` (optional): Connection timeout in ms (default: `30000`)
+- `transactionTimeout` (optional): Transaction timeout in ms (default: `300000`)
+- `skipCanOpenURLCheck` (optional): Skip canOpenURL check (default: `true` for Android compatibility)
+- `preferredWallet` (optional): Default wallet name
+
+#### Methods
+
+##### `connect(): Promise<WalletInfo>`
+
+Connect to a wallet.
+
+```typescript
+const wallet = await ton.connect();
+```
+
+##### `sendTransaction(request: SendTransactionRequest): Promise<{ boc: string; signature: string }>`
+
+Send a transaction.
+
+```typescript
+const response = await ton.sendTransaction({
+  validUntil: Date.now() + 5 * 60 * 1000, // 5 minutes
+  messages: [
+    {
+      address: 'EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIo',
+      amount: '10000000', // 0.01 TON in nanotons
+    },
+  ],
 });
 ```
 
-### Connect to Wallet
+##### `signData(data: string | Uint8Array, version?: string): Promise<{ signature: string; timestamp: number }>`
+
+Sign arbitrary data.
 
 ```typescript
-try {
-  const wallet = await ton.connect();
-  console.log('Connected to:', wallet.name);
-  console.log('Address:', wallet.address);
-  console.log('Public Key:', wallet.publicKey);
-} catch (error) {
-  if (error instanceof UserRejectedError) {
-    console.log('User rejected the connection');
-  } else if (error instanceof ConnectionTimeoutError) {
-    console.log('Connection timed out');
-  } else {
-    console.error('Connection failed:', error.message);
-  }
-}
+const signed = await ton.signData('Hello, TON!', '1.0');
 ```
 
-### Listen to Status Changes
+##### `disconnect(): Promise<void>`
+
+Disconnect from wallet.
 
 ```typescript
-ton.onStatusChange((status) => {
-  if (status.connected) {
-    console.log('Wallet:', status.wallet?.name);
-    console.log('Address:', status.wallet?.address);
-  } else {
-    console.log('Disconnected');
-  }
+await ton.disconnect();
+```
+
+##### `getStatus(): ConnectionStatus`
+
+Get current connection status.
+
+```typescript
+const status = ton.getStatus();
+// { connected: boolean, wallet: WalletInfo | null }
+```
+
+##### `getSupportedWallets(): WalletDefinition[]`
+
+Get list of supported wallets.
+
+```typescript
+const wallets = ton.getSupportedWallets();
+```
+
+##### `setPreferredWallet(name: string): void`
+
+Set preferred wallet.
+
+```typescript
+ton.setPreferredWallet('Tonhub');
+```
+
+##### `onStatusChange(callback: (status: ConnectionStatus) => void): () => void`
+
+Subscribe to connection status changes.
+
+```typescript
+const unsubscribe = ton.onStatusChange((status) => {
+  console.log('Status changed:', status);
 });
 ```
 
-### Send Transaction
-
-```typescript
-try {
-  const response = await ton.sendTransaction({
-    validUntil: Date.now() + 5 * 60 * 1000, // 5 minutes
-    messages: [
-      {
-        address: 'EQD0vdSA_NedR9uvbgN9EikRX-suesDxGeFg69XQMavfLqIo',
-        amount: '10000000', // 0.01 TON in nanotons
-      },
-    ],
-  });
-
-  console.log('Transaction BOC:', response.boc);
-  console.log('Signature:', response.signature);
-  
-  // IMPORTANT: Transaction signatures must be verified server-side
-  // The SDK does not perform cryptographic signature verification
-  // Use @ton/core or @ton/crypto on your backend to verify signatures
-} catch (error) {
-  if (error instanceof UserRejectedError) {
-    console.log('User rejected the transaction');
-  } else if (error instanceof TransactionTimeoutError) {
-    console.log('Transaction timed out');
-  } else if (error instanceof TransactionInProgressError) {
-    console.log('Transaction already in progress');
-  } else {
-    console.error('Transaction failed:', error.message);
-  }
-}
-```
-
-### Platform Support
+## Platform Support
 
 **⚠️ Important**: TON Connect deep links (`tonconnect://`) only work on **mobile devices** (Android/iOS). They do not work in web browsers.
 
@@ -140,12 +295,6 @@ try {
 - Android device or emulator
 - iOS device or simulator
 - Not web browsers
-
-### Disconnect
-
-```typescript
-await ton.disconnect();
-```
 
 ## Configuration
 
@@ -198,93 +347,114 @@ Create a `tonconnect-manifest.json` file on your server with the following struc
 {
   "url": "https://yourdomain.com",
   "name": "Your App Name",
-  "iconUrl": "https://yourdomain.com/icon.png"
+  "iconUrl": "https://yourdomain.com/icon.png",
+  "termsOfUseUrl": "https://yourdomain.com/terms",
+  "privacyPolicyUrl": "https://yourdomain.com/privacy"
 }
 ```
 
 The manifest URL must be accessible via HTTPS.
 
-## API Reference
+**Important Notes:**
+- The `url` field should match your app's domain
+- The `iconUrl` must be a valid, accessible URL
+- The manifest file must be served with proper CORS headers
+- For local development, you can use a production manifest for testing
 
-### `TonConnectMobile`
+## Supported Wallets
 
-Main SDK class.
+- **Tonkeeper** - Full support
+- **Tonhub** - Full support
+- **MyTonWallet** - Full support
+- **Wallet in Telegram** - Full support
 
-#### Constructor
+## Migration from @tonconnect/ui-react
+
+This SDK is a drop-in replacement for `@tonconnect/ui-react` in React Native/Expo environments.
+
+### Before (Web only)
 
 ```typescript
-new TonConnectMobile(config: TonConnectMobileConfig)
+import { TonConnectUIProvider, useTonConnectUI } from '@tonconnect/ui-react';
 ```
 
-**Config Options:**
+### After (React Native/Expo)
 
-- `manifestUrl` (required): URL to your TonConnect manifest file
-- `scheme` (required): Your app's deep link scheme
-- `storageKeyPrefix` (optional): Prefix for storage keys (default: `'tonconnect_'`)
-- `connectionTimeout` (optional): Connection timeout in ms (default: `300000`)
-- `transactionTimeout` (optional): Transaction timeout in ms (default: `300000`)
-- `skipCanOpenURLCheck` (optional): Skip canOpenURL check before opening URL (default: `true`)
-  - Set to `false` if you want to check if URL can be opened before attempting to open it
-  - Note: On Android, `canOpenURL` may return `false` for `tonconnect://` even if wallet is installed
+```typescript
+import { TonConnectUIProvider, useTonConnectUI } from '@blazium/ton-connect-mobile/react';
+```
 
-#### Methods
+**That's it!** The API is identical, so your existing code will work without changes.
 
-- `connect(): Promise<WalletInfo>` - Connect to a wallet
-- `disconnect(): Promise<void>` - Disconnect from wallet
-- `sendTransaction(request: SendTransactionRequest): Promise<TransactionResponse>` - Send transaction
-- `getStatus(): ConnectionStatus` - Get current connection status
-- `onStatusChange(callback: StatusChangeCallback): () => void` - Subscribe to status changes
-- `destroy(): void` - Cleanup resources
+## Error Handling
 
-### Error Classes
+The SDK provides specific error types:
 
-- `TonConnectError` - Base error class
-- `ConnectionTimeoutError` - Connection request timed out
-- `ConnectionInProgressError` - Connection request already in progress
-- `TransactionTimeoutError` - Transaction request timed out
-- `TransactionInProgressError` - Transaction request already in progress
-- `UserRejectedError` - User rejected the request
+```typescript
+import {
+  TonConnectError,
+  ConnectionTimeoutError,
+  TransactionTimeoutError,
+  UserRejectedError,
+  ConnectionInProgressError,
+  TransactionInProgressError,
+} from '@blazium/ton-connect-mobile';
 
-## Architecture
+try {
+  await ton.connect();
+} catch (error) {
+  if (error instanceof UserRejectedError) {
+    // User rejected the connection
+  } else if (error instanceof ConnectionTimeoutError) {
+    // Connection timed out
+  }
+}
+```
 
-The SDK uses an adapter-based architecture:
+## Examples
 
-- **Core** - Pure TypeScript protocol implementation (no platform dependencies)
-- **Expo Adapter** - Expo-specific implementation using `expo-linking` and `expo-crypto`
-- **React Native Adapter** - React Native CLI implementation using `react-native` Linking
+See the `test-project` directory for a complete example application demonstrating:
+- React integration with `@tonconnect/ui-react` compatibility
+- Direct SDK usage
+- Transaction sending
+- Data signing
+- Wallet selection
+- Error handling
 
-The core module is platform-agnostic and can be used in any JavaScript environment.
+## TypeScript
 
-## Example
+Full TypeScript support with comprehensive type definitions.
 
-See the `example/` directory for a complete Expo example app demonstrating:
+```typescript
+import type {
+  TonConnectMobileConfig,
+  WalletInfo,
+  ConnectionStatus,
+  SendTransactionRequest,
+  TransactionResponse,
+} from '@blazium/ton-connect-mobile';
+```
 
-- Connecting to a wallet
-- Receiving wallet information
-- Sending transactions
-- Handling errors
+## Contributing
 
-## Security Notes
-
-### Transaction Signature Verification
-
-⚠️ **IMPORTANT**: The SDK does NOT perform cryptographic verification of transaction signatures. The `verifyTransactionSignature()` function only validates format, not cryptographic correctness.
-
-**You MUST verify transaction signatures server-side** using proper TON libraries:
-- `@ton/core` - For BOC parsing and transaction verification
-- `@ton/crypto` - For cryptographic operations
-
-### Random Number Generation
-
-The SDK requires `react-native-get-random-values` for cryptographically secure random number generation. Make sure to import it at the top of your entry file.
-
-### Session Storage
-
-Sessions are stored in AsyncStorage (unencrypted). For production apps handling sensitive data, consider:
-- Using encrypted storage (iOS Keychain, Android EncryptedSharedPreferences)
-- Implementing additional security measures for sensitive wallet data
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
 MIT
 
+## Support
+
+For issues and questions:
+- GitHub Issues: [https://github.com/blaziumdev/ton-connect-mobile/issues](https://github.com/blaziumdev/ton-connect-mobile/issues)
+
+## Changelog
+
+### v1.1.5
+- ✅ Full `@tonconnect/ui-react` compatibility
+- ✅ React integration layer with hooks and components
+- ✅ Improved wallet callback handling
+- ✅ Enhanced logging and debugging
+- ✅ Better error messages
+- ✅ Android emulator localhost fix (10.0.2.2)
+- ✅ `post_redirect` return strategy for better compatibility

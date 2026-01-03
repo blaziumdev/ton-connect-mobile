@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+example/node_modules/
+example/.expo/
+example/dist/
+.env
+.env.local
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+coverage/
+.nyc_output/

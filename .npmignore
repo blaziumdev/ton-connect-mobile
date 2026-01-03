@@ -1,0 +1,12 @@
+example/
+test-project/
+node_modules/
+*.log
+.DS_Store
+*.tsbuildinfo
+tsconfig.json
+.gitignore
+README.md
+*.md
+!README.md
+

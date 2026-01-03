@@ -46,19 +46,42 @@ export class ReactNativeAdapter implements PlatformAdapter {
     });
   }
 
-  async openURL(url: string): Promise<boolean> {
+  async openURL(url: string, skipCanOpenURLCheck: boolean = true): Promise<boolean> {
     if (!Linking) {
       throw new Error('react-native Linking is not available');
     }
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        return false;
+      console.log('[ReactNativeAdapter] Opening URL:', url);
+      
+      // Optional canOpenURL check (can be disabled via config)
+      if (!skipCanOpenURLCheck) {
+        console.log('[ReactNativeAdapter] Checking if URL can be opened...');
+        const canOpen = await Linking.canOpenURL(url);
+        console.log('[ReactNativeAdapter] canOpenURL result:', canOpen);
+        if (!canOpen) {
+          throw new Error(
+            'Cannot open URL. Make sure a wallet app is installed that supports tonconnect:// protocol.'
+          );
+        }
+      } else {
+        console.log('[ReactNativeAdapter] Skipping canOpenURL check (Android compatibility)');
       }
+      
+      // CRITICAL FIX: Android'de canOpenURL() tonconnect:// protokolünü tanımayabilir
+      // Bu yüzden direkt openURL() çağırıyoruz. Eğer açılamazsa hata fırlatır.
       await Linking.openURL(url);
+      console.log('[ReactNativeAdapter] URL opened successfully');
       return true;
-    } catch (error) {
-      return false;
+    } catch (error: any) {
+      console.error('[ReactNativeAdapter] Error in openURL:', error);
+      // Android'de tonconnect:// protokolü tanınmıyorsa veya cüzdan yüklü değilse hata verir
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes('No Activity found') || errorMessage.includes('No app found') || errorMessage.includes('Cannot open URL')) {
+        throw new Error(
+          'No TON wallet app found. Please install Tonkeeper or another TON Connect compatible wallet from Google Play Store.'
+        );
+      }
+      throw new Error(`Failed to open wallet app: ${errorMessage}`);
     }
   }
 

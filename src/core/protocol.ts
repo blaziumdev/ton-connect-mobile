@@ -26,7 +26,9 @@ import {
  */
 const PROTOCOL_VERSION = '2';
 const CONNECT_PREFIX = 'tonconnect://connect';
+const CONNECT_UNIVERSAL_PREFIX = 'https://app.tonkeeper.com/ton-connect';
 const SEND_TRANSACTION_PREFIX = 'tonconnect://send-transaction';
+const SEND_TRANSACTION_UNIVERSAL_PREFIX = 'https://app.tonkeeper.com/ton-connect/send-transaction';
 const CALLBACK_PREFIX = 'tonconnect';
 
 /**
@@ -122,29 +124,55 @@ export function decodeBase64URL<T>(encoded: string): T {
 /**
  * Build connection request URL
  * Format: tonconnect://connect?<base64_encoded_payload>
+ * Or universal link: https://app.tonkeeper.com/ton-connect?<base64_encoded_payload>
+ * Or custom wallet universal link
  */
 export function buildConnectionRequest(
   manifestUrl: string,
-  returnScheme: string
+  returnScheme: string,
+  walletUniversalLink?: string,
+  returnStrategy?: 'back' | 'post_redirect' | 'none',
+  requiresReturnScheme?: boolean
 ): string {
+  // Build payload with required fields
   const payload: ConnectionRequestPayload = {
     manifestUrl,
     items: [{ name: 'ton_addr' }],
-    returnStrategy: 'back',
+    returnStrategy: returnStrategy || 'back',
   };
 
+  // CRITICAL FIX: Many wallets (Tonhub, MyTonWallet, Telegram Wallet) require returnScheme
+  // in the payload to properly handle mobile app callbacks. While not in the official
+  // protocol spec, it's a de-facto requirement for mobile apps.
+  if (requiresReturnScheme !== false) {
+    // Default to true if not specified - safer to include it
+    payload.returnScheme = returnScheme;
+  }
+
   const encoded = encodeBase64URL(payload);
-  return `${CONNECT_PREFIX}?${encoded}`;
+  
+  // Use custom wallet universal link if provided
+  if (walletUniversalLink) {
+    return `${walletUniversalLink}?${encoded}`;
+  }
+  
+  // Default to Tonkeeper universal link for Android compatibility
+  return `${CONNECT_UNIVERSAL_PREFIX}?${encoded}`;
 }
 
 /**
  * Build transaction request URL
  * Format: tonconnect://send-transaction?<base64_encoded_payload>
+ * Or universal link: https://app.tonkeeper.com/ton-connect/send-transaction?<base64_encoded_payload>
+ * Or custom wallet universal link
  */
 export function buildTransactionRequest(
   manifestUrl: string,
   request: SendTransactionRequest,
-  returnScheme: string
+  returnScheme: string,
+  walletUniversalLink?: string,
+  returnStrategy?: 'back' | 'post_redirect' | 'none',
+  requiresReturnScheme?: boolean
 ): string {
   const payload: TransactionRequestPayload = {
     manifestUrl,
@@ -159,11 +187,27 @@ export function buildTransactionRequest(
       network: request.network,
       from: request.from,
     },
-    returnStrategy: 'back',
+    returnStrategy: returnStrategy || 'back',
   };
 
+  // CRITICAL FIX: Include returnScheme for mobile wallets that require it
+  if (requiresReturnScheme !== false) {
+    payload.returnScheme = returnScheme;
+  }
+
   const encoded = encodeBase64URL(payload);
-  return `${SEND_TRANSACTION_PREFIX}?${encoded}`;
+  
+  // Use custom wallet universal link if provided
+  if (walletUniversalLink) {
+    // For transaction, append /send-transaction to the base universal link
+    const baseUrl = walletUniversalLink.endsWith('/ton-connect') 
+      ? walletUniversalLink 
+      : `${walletUniversalLink}/ton-connect`;
+    return `${baseUrl}/send-transaction?${encoded}`;
+  }
+  
+  // Default to Tonkeeper universal link for Android compatibility
+  return `${SEND_TRANSACTION_UNIVERSAL_PREFIX}?${encoded}`;
 }
 
 /**

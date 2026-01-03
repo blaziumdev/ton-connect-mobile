@@ -81,8 +81,10 @@ export interface ConnectionRequestPayload {
   items: Array<{
     name: 'ton_addr';
   }>;
-  /** Return URL scheme */
-  returnStrategy?: 'back' | 'none';
+  /** Return strategy - how wallet should return to the app */
+  returnStrategy?: 'back' | 'post_redirect' | 'none';
+  /** Return scheme for mobile apps (required by many wallets for proper callback handling) */
+  returnScheme?: string;
 }
 
 /**
@@ -138,8 +140,10 @@ export interface TransactionRequestPayload {
     /** Optional from address */
     from?: string;
   };
-  /** Return URL scheme */
-  returnStrategy?: 'back' | 'none';
+  /** Return URL scheme (for mobile apps) */
+  returnScheme?: string;
+  /** Return strategy */
+  returnStrategy?: 'back' | 'post_redirect' | 'none';
 }
 
 /**
@@ -168,7 +172,7 @@ export interface ErrorResponse {
  */
 export interface PlatformAdapter {
   /** Open a deep link URL */
-  openURL(url: string): Promise<boolean>;
+  openURL(url: string, skipCanOpenURLCheck?: boolean): Promise<boolean>;
   /** Get initial URL when app was opened via deep link */
   getInitialURL(): Promise<string | null>;
   /** Add listener for URL changes */
@@ -197,6 +201,16 @@ export interface TonConnectMobileConfig {
   connectionTimeout?: number;
   /** Optional transaction timeout in ms (default: 300000 = 5 minutes) */
   transactionTimeout?: number;
+  /** Skip canOpenURL check before opening URL (optional, default: true)
+   * Set to false if you want to check if URL can be opened before attempting to open it.
+   * Note: On Android, canOpenURL may return false for tonconnect:// even if wallet is installed.
+   */
+  skipCanOpenURLCheck?: boolean;
+  /** Preferred wallet name (optional)
+   * If not specified, will use default wallet (Tonkeeper)
+   * Available: 'Tonkeeper', 'MyTonWallet', 'Wallet in Telegram', 'Tonhub'
+   */
+  preferredWallet?: string;
 }
 
 /**

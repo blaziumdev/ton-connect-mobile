@@ -66,7 +66,7 @@ export class WebAdapter implements PlatformAdapter {
     });
   }
 
-  async openURL(url: string): Promise<boolean> {
+  async openURL(url: string, skipCanOpenURLCheck?: boolean): Promise<boolean> {
     try {
       if (typeof window !== 'undefined') {
         // For web, tonconnect:// deep links don't work

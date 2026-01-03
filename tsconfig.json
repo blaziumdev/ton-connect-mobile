@@ -12,6 +12,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
+    "jsx": "react",
+    "allowSyntheticDefaultImports": true,
     "types": []
   },
   "include": ["src/**/*"],

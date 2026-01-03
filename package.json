@@ -1,15 +1,27 @@
 {
   "name": "@blazium/ton-connect-mobile",
-  "version": "1.0.0",
+  "version": "1.1.5",
   "description": "Production-ready TON Connect Mobile SDK for React Native and Expo. Implements the real TonConnect protocol for mobile applications using deep links and callbacks.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js",
+      "react-native": "./dist/react/index.js"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/blaziumdev/ton-connect-mobile.git"
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "node scripts/postbuild.js",
     "prepublishOnly": "npm run build",
     "example": "cd example && npm start"
   },
@@ -31,6 +43,7 @@
     "react-native-get-random-values": "^1.9.0"
   },
   "peerDependencies": {
+    "react": "*",
     "react-native": "*"
   },
   "peerDependenciesMeta": {

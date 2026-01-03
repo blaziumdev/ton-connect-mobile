@@ -223,6 +223,9 @@ new TonConnectMobile(config: TonConnectMobileConfig)
 - `storageKeyPrefix` (optional): Prefix for storage keys (default: `'tonconnect_'`)
 - `connectionTimeout` (optional): Connection timeout in ms (default: `300000`)
 - `transactionTimeout` (optional): Transaction timeout in ms (default: `300000`)
+- `skipCanOpenURLCheck` (optional): Skip canOpenURL check before opening URL (default: `true`)
+  - Set to `false` if you want to check if URL can be opened before attempting to open it
+  - Note: On Android, `canOpenURL` may return `false` for `tonconnect://` even if wallet is installed
 
 #### Methods
 

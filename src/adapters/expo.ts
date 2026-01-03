@@ -40,37 +40,73 @@ export class ExpoAdapter implements PlatformAdapter {
 
   private setupURLListener(): void {
     if (!Linking) {
+      console.warn('[ExpoAdapter] Linking not available, URL listener not set up');
       return;
     }
     // Listen for deep links when app is already open
     this.subscription = Linking.addEventListener('url', (event: { url: string }) => {
-      this.urlListeners.forEach((listener) => listener(event.url));
+      console.log('[ExpoAdapter] URL event received:', event.url);
+      this.urlListeners.forEach((listener) => {
+        try {
+          listener(event.url);
+        } catch (error) {
+          console.error('[ExpoAdapter] Error in URL listener:', error);
+        }
+      });
     });
+    console.log('[ExpoAdapter] URL listener set up successfully');
   }
 
-  async openURL(url: string): Promise<boolean> {
+  async openURL(url: string, skipCanOpenURLCheck: boolean = true): Promise<boolean> {
     if (!Linking) {
       throw new Error('expo-linking is not available');
     }
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        return false;
+      console.log('[ExpoAdapter] Opening URL:', url);
+      
+      // Optional canOpenURL check (can be disabled via config)
+      if (!skipCanOpenURLCheck) {
+        console.log('[ExpoAdapter] Checking if URL can be opened...');
+        const canOpen = await Linking.canOpenURL(url);
+        console.log('[ExpoAdapter] canOpenURL result:', canOpen);
+        if (!canOpen) {
+          throw new Error(
+            'Cannot open URL. Make sure a wallet app is installed that supports tonconnect:// protocol.'
+          );
+        }
+      } else {
+        console.log('[ExpoAdapter] Skipping canOpenURL check (Android compatibility)');
       }
+      
+      // CRITICAL FIX: Android'de canOpenURL() tonconnect:// protokolünü tanımayabilir
+      // Bu yüzden direkt openURL() çağırıyoruz. Eğer açılamazsa hata fırlatır.
       await Linking.openURL(url);
+      console.log('[ExpoAdapter] URL opened successfully');
       return true;
-    } catch (error) {
-      return false;
+    } catch (error: any) {
+      console.error('[ExpoAdapter] Error in openURL:', error);
+      // Android'de tonconnect:// protokolü tanınmıyorsa veya cüzdan yüklü değilse hata verir
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes('No Activity found') || errorMessage.includes('No app found') || errorMessage.includes('Cannot open URL')) {
+        throw new Error(
+          'No TON wallet app found. Please install Tonkeeper or another TON Connect compatible wallet from Google Play Store.'
+        );
+      }
+      throw new Error(`Failed to open wallet app: ${errorMessage}`);
     }
   }
 
   async getInitialURL(): Promise<string | null> {
     if (!Linking) {
+      console.warn('[ExpoAdapter] Linking not available, cannot get initial URL');
       return null;
     }
     try {
-      return await Linking.getInitialURL();
+      const url = await Linking.getInitialURL();
+      console.log('[ExpoAdapter] getInitialURL result:', url);
+      return url;
     } catch (error) {
+      console.error('[ExpoAdapter] Error getting initial URL:', error);
       return null;
     }
   }

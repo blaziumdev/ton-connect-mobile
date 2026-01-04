@@ -862,7 +862,6 @@ try {
 - ✅ **IMPROVED**: All wallets shown on web platform (with availability status)
 - ✅ **IMPROVED**: Chain ID automatically updates when network changes
 - ✅ **FIXED**: Tonkeeper now correctly shows as available on web
-- ✅ **FIXED**: All Turkish comments translated to English
 
 ### v1.2.0
 - ✅ **NEW**: Beautiful wallet selection modal component

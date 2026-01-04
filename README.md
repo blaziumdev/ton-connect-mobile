@@ -873,34 +873,6 @@ try {
 - ✅ Enhanced logging and debugging
 - ✅ Better TypeScript types
 
-## Changelog
-
-### v1.2.3
-- ✅ **NEW**: Network switching - Switch between mainnet and testnet dynamically
-- ✅ **NEW**: Event emitters - Listen to connect, disconnect, transaction, and error events
-- ✅ **NEW**: Wallet balance checking - Get wallet balance via TON Center API integration
-- ✅ **NEW**: Transaction status tracking - Track transaction status with polling mechanism
-- ✅ **NEW**: Complete TonConnectUI API implementation - all features from @tonconnect/ui-react
-- ✅ **NEW**: `restoreConnection()` method - restore connection from stored session
-- ✅ **NEW**: `setWalletList()` method - customize available wallets in modal
-- ✅ **NEW**: Wallet selection modal with grid layout matching @tonconnect/ui-react design
-- ✅ **NEW**: Real wallet icons loaded from official sources
-- ✅ **NEW**: Improved web platform support (Tonkeeper Web, MyTonWallet Web)
-- ✅ **IMPROVED**: Wallet availability detection using adapter type (more reliable)
-- ✅ **IMPROVED**: All wallets shown on web platform (with availability status)
-- ✅ **IMPROVED**: Chain ID automatically updates when network changes
-- ✅ **FIXED**: Tonkeeper now correctly shows as available on web
-- ✅ **FIXED**: All Turkish comments translated to English
-
-### v1.2.0
-- ✅ **NEW**: Beautiful wallet selection modal component
-- ✅ **NEW**: Transaction builder utilities (`buildTransferTransaction`, `tonToNano`, etc.)
-- ✅ **NEW**: Retry utilities with exponential backoff
-- ✅ **NEW**: Enhanced error messages with recovery suggestions
-- ✅ **NEW**: Wallet availability checking (`isWalletAvailable`)
-- ✅ Improved wallet callback handling
-- ✅ Enhanced logging and debugging
-- ✅ Better TypeScript types
 
 ### v1.1.5
 - ✅ Full `@tonconnect/ui-react` compatibility

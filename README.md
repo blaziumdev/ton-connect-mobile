@@ -834,7 +834,6 @@ try {
 - ✅ **FIXED**: ReactNativeAdapter URL listener error handling - Added try-catch block to prevent app crashes if URL listeners throw errors
 - ✅ **IMPROVED**: Enhanced error handling robustness across the SDK
 
-
 ### v1.2.3
 - ✅ **NEW**: Network switching - Switch between mainnet and testnet dynamically
 - ✅ **NEW**: Event emitters - Listen to connect, disconnect, transaction, and error events
@@ -851,6 +850,7 @@ try {
 - ✅ **IMPROVED**: Chain ID automatically updates when network changes
 - ✅ **FIXED**: Tonkeeper now correctly shows as available on web
 
+
 ### v1.2.0
 - ✅ **NEW**: Beautiful wallet selection modal component
 - ✅ **NEW**: Transaction builder utilities (`buildTransferTransaction`, `tonToNano`, etc.)
@@ -860,7 +860,6 @@ try {
 - ✅ Improved wallet callback handling
 - ✅ Enhanced logging and debugging
 - ✅ Better TypeScript types
-
 
 ### v1.1.5
 - ✅ Full `@tonconnect/ui-react` compatibility

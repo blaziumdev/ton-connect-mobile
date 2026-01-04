@@ -338,6 +338,8 @@ export function extractWalletInfo(
 
 /**
  * Validate connection response
+ * CRITICAL FIX: Only validate truly required fields (session, address, publicKey, name)
+ * appName and version are optional - extractWalletInfo has fallbacks for them
  */
 export function validateConnectionResponse(
   response: ConnectionResponsePayload
@@ -346,9 +348,9 @@ export function validateConnectionResponse(
     response.session &&
     response.address &&
     response.publicKey &&
-    response.name &&
-    response.appName &&
-    response.version
+    response.name
+    // Note: appName and version are optional - extractWalletInfo handles fallbacks
+    // Some wallets may not send these fields, and that's OK
   );
 }
 

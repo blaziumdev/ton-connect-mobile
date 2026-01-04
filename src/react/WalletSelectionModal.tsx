@@ -45,6 +45,7 @@ export function WalletSelectionModal({
   const [wallets, setWallets] = React.useState<WalletDefinition[]>([]);
   const [connectingWallet, setConnectingWallet] = React.useState<string | null>(null);
   const [walletAvailability, setWalletAvailability] = React.useState<Record<string, boolean>>({});
+  const [imageErrors, setImageErrors] = React.useState<Record<string, boolean>>({});
 
   // Load wallets and check availability
   React.useEffect(() => {
@@ -147,6 +148,7 @@ export function WalletSelectionModal({
               wallets.map((wallet) => {
                 const isConnecting = connectingWallet === wallet.name;
                 const isAvailable = walletAvailability[wallet.name] !== false;
+                const imageError = imageErrors[wallet.name] || false;
                 return (
                   <TouchableOpacity
                     key={wallet.name}
@@ -159,12 +161,16 @@ export function WalletSelectionModal({
                     disabled={!isAvailable || isConnecting}
                   >
                     <View style={styles.walletIconContainer}>
-                      {wallet.iconUrl && Platform.OS !== 'web' ? (
+                      {wallet.iconUrl && !imageError ? (
                         <Image
                           source={{ uri: wallet.iconUrl }}
                           style={styles.walletIcon}
-                          onError={() => {
-                            // Fallback to placeholder on error
+                          onError={(error) => {
+                            console.log(`[WalletSelectionModal] Failed to load image for ${wallet.name}:`, wallet.iconUrl, error);
+                            setImageErrors((prev) => ({ ...prev, [wallet.name]: true }));
+                          }}
+                          onLoad={() => {
+                            console.log(`[WalletSelectionModal] Successfully loaded image for ${wallet.name}:`, wallet.iconUrl);
                           }}
                           resizeMode="cover"
                         />

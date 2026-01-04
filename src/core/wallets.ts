@@ -49,9 +49,9 @@ export const SUPPORTED_WALLETS: WalletDefinition[] = [
   {
     name: 'Wallet in Telegram',
     appName: 'Wallet',
-    universalLink: 'https://wallet.tonapi.io/ton-connect',
+    universalLink: 'https://wallet.tg/ton-connect',
     deepLink: 'tg://',
-    iconUrl: 'https://wallet.tonapi.io/icon.png',
+    iconUrl: 'https://wallet.tg/images/logo-288.png',
     platforms: ['ios', 'android'],
     preferredReturnStrategy: 'post_redirect',
     requiresReturnScheme: true, // Telegram Wallet requires explicit returnScheme

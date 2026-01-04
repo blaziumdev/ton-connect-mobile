@@ -42,7 +42,13 @@ export class ReactNativeAdapter implements PlatformAdapter {
     }
     // Listen for deep links when app is already open
     this.subscription = Linking.addEventListener('url', (event: { url: string }) => {
-      this.urlListeners.forEach((listener) => listener(event.url));
+      this.urlListeners.forEach((listener) => {
+        try {
+          listener(event.url);
+        } catch (error) {
+          console.error('[ReactNativeAdapter] Error in URL listener:', error);
+        }
+      });
     });
   }
 

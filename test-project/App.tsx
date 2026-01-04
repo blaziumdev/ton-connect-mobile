@@ -18,6 +18,7 @@ import {
   ScrollView,
   SafeAreaView,
   TextInput,
+  Image,
 } from 'react-native';
 
 // New React integration (compatible with @tonconnect/ui-react)
@@ -105,6 +106,21 @@ function AppContent() {
   const [eventLogs, setEventLogs] = useState<string[]>([]);
   const [showTxStatusModal, setShowTxStatusModal] = useState(false);
   const [txHashInput, setTxHashInput] = useState('');
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  
+  // Alternative icon URLs for wallets (fallback mechanism)
+  const getAlternativeIconUrl = (walletName: string, originalUrl: string | undefined): string[] => {
+    if (!originalUrl) return [];
+    if (walletName === 'Wallet in Telegram') {
+      return [
+        originalUrl,
+        'https://wallet.tg/images/logo-288.png',
+        'https://ton.org/wallets/telegram-wallet.png',
+      ];
+    }
+    return [originalUrl];
+  };
 
   // Load supported wallets on mount
   React.useEffect(() => {
@@ -626,6 +642,7 @@ function AppContent() {
               <Text style={styles.availableWalletsText}>Available wallets</Text>
               {wallets.map((walletOption) => {
                 const isAvailable = walletAvailability[walletOption.name] !== false;
+                const imageError = imageErrors[walletOption.name] || false;
                 return (
                   <TouchableOpacity
                     key={walletOption.name}
@@ -633,7 +650,42 @@ function AppContent() {
                     onPress={() => handleConnectWallet(walletOption.name, false)}
                   >
                     <View style={styles.walletIcon}>
-                      <Text style={styles.walletIconText}>{walletOption.name.charAt(0)}</Text>
+                      {(() => {
+                        if (!walletOption.iconUrl || imageError) {
+                          return <Text style={styles.walletIconText}>{walletOption.name.charAt(0)}</Text>;
+                        }
+                        
+                        const currentUrl = imageUrls[walletOption.name] || walletOption.iconUrl;
+                        const alternatives = getAlternativeIconUrl(walletOption.name, walletOption.iconUrl);
+                        const currentIndex = currentUrl ? alternatives.indexOf(currentUrl) : -1;
+                        
+                        if (!currentUrl) {
+                          return <Text style={styles.walletIconText}>{walletOption.name.charAt(0)}</Text>;
+                        }
+                        
+                        return (
+                          <Image
+                            source={{ uri: currentUrl }}
+                            style={styles.walletIconImage}
+                            onError={(error) => {
+                              console.log(`[WalletIcon] Failed to load image for ${walletOption.name}:`, currentUrl, error);
+                              // Try next alternative URL
+                              if (currentIndex >= 0 && currentIndex < alternatives.length - 1) {
+                                const nextUrl = alternatives[currentIndex + 1];
+                                console.log(`[WalletIcon] Trying alternative URL for ${walletOption.name}:`, nextUrl);
+                                setImageUrls((prev) => ({ ...prev, [walletOption.name]: nextUrl }));
+                              } else {
+                                // All alternatives failed, show fallback
+                                setImageErrors((prev) => ({ ...prev, [walletOption.name]: true }));
+                              }
+                            }}
+                            onLoad={() => {
+                              console.log(`[WalletIcon] Successfully loaded image for ${walletOption.name}:`, currentUrl);
+                            }}
+                            resizeMode="contain"
+                          />
+                        );
+                      })()}
                     </View>
                     <View style={styles.walletItemInfo}>
                       <Text style={styles.walletName}>{walletOption.name}</Text>
@@ -878,6 +930,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
+    overflow: 'hidden',
+  },
+  walletIconImage: {
+    width: '100%',
+    height: '100%',
   },
   walletIconText: {
     color: '#fff',

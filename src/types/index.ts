@@ -188,6 +188,11 @@ export interface PlatformAdapter {
 }
 
 /**
+ * Network type
+ */
+export type Network = 'mainnet' | 'testnet';
+
+/**
  * SDK configuration
  */
 export interface TonConnectMobileConfig {
@@ -211,10 +216,57 @@ export interface TonConnectMobileConfig {
    * Available: 'Tonkeeper', 'MyTonWallet', 'Wallet in Telegram', 'Tonhub'
    */
   preferredWallet?: string;
+  /** Network (mainnet/testnet) - default: 'mainnet' */
+  network?: Network;
+  /** TON API endpoint for balance checking (optional)
+   * Default: 'https://toncenter.com/api/v2' for mainnet, 'https://testnet.toncenter.com/api/v2' for testnet
+   */
+  tonApiEndpoint?: string;
 }
 
 /**
  * Event listener callback type
  */
 export type StatusChangeCallback = (status: ConnectionStatus) => void;
+
+/**
+ * Event types for TonConnectMobile
+ */
+export type TonConnectEventType = 'connect' | 'disconnect' | 'transaction' | 'error' | 'statusChange';
+
+/**
+ * Event listener callback
+ */
+export type TonConnectEventListener<T = any> = (data: T) => void;
+
+/**
+ * Transaction status
+ */
+export type TransactionStatus = 'pending' | 'confirmed' | 'failed' | 'unknown';
+
+/**
+ * Transaction status response
+ */
+export interface TransactionStatusResponse {
+  /** Transaction status */
+  status: TransactionStatus;
+  /** Transaction hash (if available) */
+  hash?: string;
+  /** Block number (if confirmed) */
+  blockNumber?: number;
+  /** Error message (if failed) */
+  error?: string;
+}
+
+/**
+ * Balance response
+ */
+export interface BalanceResponse {
+  /** Balance in nanotons */
+  balance: string;
+  /** Balance in TON (formatted) */
+  balanceTon: string;
+  /** Network */
+  network: Network;
+}
 

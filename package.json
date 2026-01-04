@@ -1,6 +1,6 @@
 {
   "name": "@blazium/ton-connect-mobile",
-  "version": "1.1.5",
+  "version": "1.2.3",
   "description": "Production-ready TON Connect Mobile SDK for React Native and Expo. Implements the real TonConnect protocol for mobile applications using deep links and callbacks.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

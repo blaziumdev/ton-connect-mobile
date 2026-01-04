@@ -13,6 +13,12 @@ import {
   SendTransactionRequest,
   StatusChangeCallback,
   PlatformAdapter,
+  Network,
+  TonConnectEventType,
+  TonConnectEventListener,
+  TransactionStatus,
+  TransactionStatusResponse,
+  BalanceResponse,
 } from './types';
 import {
   buildConnectionRequest,
@@ -40,7 +46,7 @@ import { getWalletByName, getDefaultWallet, SUPPORTED_WALLETS, type WalletDefini
  * Custom error classes
  */
 export class TonConnectError extends Error {
-  constructor(message: string, public code?: string) {
+  constructor(message: string, public code?: string, public recoverySuggestion?: string) {
     super(message);
     this.name = 'TonConnectError';
   }
@@ -48,35 +54,55 @@ export class TonConnectError extends Error {
 
 export class ConnectionTimeoutError extends TonConnectError {
   constructor() {
-    super('Connection request timed out', 'CONNECTION_TIMEOUT');
+    super(
+      'Connection request timed out. The wallet did not respond in time.',
+      'CONNECTION_TIMEOUT',
+      'Please make sure the wallet app is installed and try again. If the issue persists, check your internet connection.'
+    );
     this.name = 'ConnectionTimeoutError';
   }
 }
 
 export class TransactionTimeoutError extends TonConnectError {
   constructor() {
-    super('Transaction request timed out', 'TRANSACTION_TIMEOUT');
+    super(
+      'Transaction request timed out. The wallet did not respond in time.',
+      'TRANSACTION_TIMEOUT',
+      'Please check the wallet app and try again. Make sure you approve or reject the transaction in the wallet.'
+    );
     this.name = 'TransactionTimeoutError';
   }
 }
 
 export class UserRejectedError extends TonConnectError {
-  constructor() {
-    super('User rejected the request', 'USER_REJECTED');
+  constructor(message?: string) {
+    super(
+      message || 'User rejected the request',
+      'USER_REJECTED',
+      'The user cancelled the operation in the wallet app.'
+    );
     this.name = 'UserRejectedError';
   }
 }
 
 export class ConnectionInProgressError extends TonConnectError {
   constructor() {
-    super('Connection request already in progress', 'CONNECTION_IN_PROGRESS');
+    super(
+      'Connection request already in progress',
+      'CONNECTION_IN_PROGRESS',
+      'Please wait for the current connection attempt to complete before trying again.'
+    );
     this.name = 'ConnectionInProgressError';
   }
 }
 
 export class TransactionInProgressError extends TonConnectError {
   constructor() {
-    super('Transaction request already in progress', 'TRANSACTION_IN_PROGRESS');
+    super(
+      'Transaction request already in progress',
+      'TRANSACTION_IN_PROGRESS',
+      'Please wait for the current transaction to complete before sending another one.'
+    );
     this.name = 'TransactionInProgressError';
   }
 }
@@ -86,8 +112,13 @@ export class TransactionInProgressError extends TonConnectError {
  */
 export class TonConnectMobile {
   private adapter: PlatformAdapter;
-  private config: Required<Omit<TonConnectMobileConfig, 'preferredWallet'>> & { preferredWallet?: string };
+  private config: Required<Omit<TonConnectMobileConfig, 'preferredWallet' | 'network' | 'tonApiEndpoint'>> & {
+    preferredWallet?: string;
+    network: Network;
+    tonApiEndpoint?: string;
+  };
   private statusChangeCallbacks: Set<StatusChangeCallback> = new Set();
+  private eventListeners: Map<TonConnectEventType, Set<TonConnectEventListener>> = new Map();
   private currentStatus: ConnectionStatus = { connected: false, wallet: null };
   private urlUnsubscribe: (() => void) | null = null;
   private currentWallet!: WalletDefinition;
@@ -116,14 +147,32 @@ export class TonConnectMobile {
       throw new TonConnectError('scheme is required');
     }
 
+    // Validate network
+    const network = config.network || 'mainnet';
+    if (network !== 'mainnet' && network !== 'testnet') {
+      throw new TonConnectError('Network must be either "mainnet" or "testnet"');
+    }
+
+    // Set default TON API endpoint based on network
+    const defaultTonApiEndpoint =
+      network === 'testnet'
+        ? 'https://testnet.toncenter.com/api/v2'
+        : 'https://toncenter.com/api/v2';
+
     this.config = {
       storageKeyPrefix: 'tonconnect_',
       connectionTimeout: 300000, // 5 minutes
       transactionTimeout: 300000, // 5 minutes
       skipCanOpenURLCheck: true, // Skip canOpenURL check by default (Android issue)
       preferredWallet: config.preferredWallet,
+      network,
+      tonApiEndpoint: config.tonApiEndpoint || defaultTonApiEndpoint,
       ...config,
-    } as Required<Omit<TonConnectMobileConfig, 'preferredWallet'>> & { preferredWallet?: string };
+    } as Required<Omit<TonConnectMobileConfig, 'preferredWallet' | 'network' | 'tonApiEndpoint'>> & {
+      preferredWallet?: string;
+      network: Network;
+      tonApiEndpoint?: string;
+    };
 
     // Determine which wallet to use
     if (this.config.preferredWallet) {
@@ -142,6 +191,7 @@ export class TonConnectMobile {
     console.log('[TON Connect] Initializing SDK with config:', {
       manifestUrl: this.config.manifestUrl,
       scheme: this.config.scheme,
+      network: this.config.network,
       wallet: this.currentWallet.name,
       universalLink: this.currentWallet.universalLink,
     });
@@ -235,8 +285,9 @@ export class TonConnectMobile {
     console.log('[TON Connect] Parsed callback:', parsed.type, parsed.data ? 'has data' : 'no data');
 
     // CRITICAL FIX: Check for sign data response first (before other handlers)
-    if (this.signDataPromise && !this.signDataPromise.timeout) {
-      // Sign data request is pending
+    // Note: We check if promise exists and hasn't timed out (timeout !== null means not timed out yet)
+    if (this.signDataPromise && this.signDataPromise.timeout !== null) {
+      // Sign data request is pending and hasn't timed out
       if (parsed.type === 'error' && parsed.data) {
         const errorData = parsed.data as ErrorResponse;
         if (errorData?.error) {
@@ -326,13 +377,22 @@ export class TonConnectMobile {
     this.currentStatus = { connected: true, wallet };
     this.notifyStatusChange();
 
+    // Emit connect event
+    this.emit('connect', wallet);
+
     // Resolve connection promise
+    // CRITICAL: Only resolve if promise still exists and hasn't timed out
     if (this.connectionPromise) {
+      // Clear timeout if it exists
       if (this.connectionPromise.timeout !== null) {
         clearTimeout(this.connectionPromise.timeout);
       }
-      this.connectionPromise.resolve(wallet);
+      // Store reference before clearing to prevent race conditions
+      const promise = this.connectionPromise;
+      // Clear promise first
       this.connectionPromise = null;
+      // Then resolve
+      promise.resolve(wallet);
     }
   }
 
@@ -345,16 +405,27 @@ export class TonConnectMobile {
       return;
     }
 
+    const transactionResult = {
+      boc: response.boc,
+      signature: response.signature,
+    };
+
+    // Emit transaction event
+    this.emit('transaction', transactionResult);
+
     // Resolve transaction promise
+    // CRITICAL: Only resolve if promise still exists and hasn't timed out
     if (this.transactionPromise) {
+      // Clear timeout if it exists
       if (this.transactionPromise.timeout !== null) {
         clearTimeout(this.transactionPromise.timeout);
       }
-      this.transactionPromise.resolve({
-        boc: response.boc,
-        signature: response.signature,
-      });
+      // Store reference before clearing
+      const promise = this.transactionPromise;
+      // Clear promise first to prevent race conditions
       this.transactionPromise = null;
+      // Then resolve
+      promise.resolve(transactionResult);
     }
   }
 
@@ -362,6 +433,9 @@ export class TonConnectMobile {
    * Reject current promise with error
    */
   private rejectWithError(error: Error): void {
+    // Emit error event
+    this.emit('error', error);
+
     if (this.connectionPromise) {
       if (this.connectionPromise.timeout !== null) {
         clearTimeout(this.connectionPromise.timeout);
@@ -375,6 +449,14 @@ export class TonConnectMobile {
       }
       this.transactionPromise.reject(error);
       this.transactionPromise = null;
+    }
+    // CRITICAL FIX: Also clear signDataPromise to prevent memory leaks
+    if (this.signDataPromise) {
+      if (this.signDataPromise.timeout !== null) {
+        clearTimeout(this.signDataPromise.timeout);
+      }
+      this.signDataPromise.reject(error);
+      this.signDataPromise = null;
     }
   }
 
@@ -731,6 +813,9 @@ export class TonConnectMobile {
     // Update status
     this.currentStatus = { connected: false, wallet: null };
     this.notifyStatusChange();
+
+    // Emit disconnect event
+    this.emit('disconnect', null);
   }
 
   /**
@@ -752,6 +837,38 @@ export class TonConnectMobile {
    */
   getCurrentWallet(): WalletDefinition {
     return this.currentWallet;
+  }
+
+  /**
+   * Check if a wallet is available on the current platform
+   * Note: This is a best-effort check and may not be 100% accurate
+   * CRITICAL FIX: On web, if wallet has universalLink, it's considered available
+   * because universal links can open in new tabs/windows
+   */
+  async isWalletAvailable(walletName?: string): Promise<boolean> {
+    const wallet = walletName ? getWalletByName(walletName) : this.currentWallet;
+    if (!wallet) {
+      return false;
+    }
+
+    // CRITICAL FIX: Check adapter type to reliably detect web platform
+    // WebAdapter is only used on web, so this is the most reliable check
+    const isWeb = this.adapter.constructor.name === 'WebAdapter';
+    
+    if (isWeb) {
+      // On web, if wallet has universalLink or supports web platform, it's available
+      // Universal links can open in a new tab on web
+      return wallet.platforms.includes('web') || !!wallet.universalLink;
+    }
+
+    // On mobile, we can't reliably check if wallet is installed
+    // Return true if wallet supports the current platform
+    // eslint-disable-next-line no-undef
+    const platform = typeof globalThis !== 'undefined' && (globalThis as any).Platform
+      ? (globalThis as any).Platform.OS === 'ios' ? 'ios' : 'android'
+      : 'android';
+    
+    return wallet.platforms.includes(platform);
   }
 
   /**
@@ -803,6 +920,63 @@ export class TonConnectMobile {
         // Ignore errors in callbacks
       }
     });
+    // Emit statusChange event
+    this.emit('statusChange', status);
+  }
+
+  /**
+   * Emit event to all listeners
+   */
+  private emit<T>(event: TonConnectEventType, data: T): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach((listener) => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.error(`[TON Connect] Error in event listener for ${event}:`, error);
+        }
+      });
+    }
+  }
+
+  /**
+   * Add event listener
+   */
+  on<T = any>(event: TonConnectEventType, listener: TonConnectEventListener<T>): () => void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    this.eventListeners.get(event)!.add(listener);
+
+    // Return unsubscribe function
+    return () => {
+      const listeners = this.eventListeners.get(event);
+      if (listeners) {
+        listeners.delete(listener);
+      }
+    };
+  }
+
+  /**
+   * Remove event listener
+   */
+  off<T = any>(event: TonConnectEventType, listener: TonConnectEventListener<T>): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.delete(listener);
+    }
+  }
+
+  /**
+   * Remove all listeners for an event
+   */
+  removeAllListeners(event?: TonConnectEventType): void {
+    if (event) {
+      this.eventListeners.delete(event);
+    } else {
+      this.eventListeners.clear();
+    }
   }
 
   /**
@@ -917,9 +1091,239 @@ export class TonConnectMobile {
     }
 
     this.statusChangeCallbacks.clear();
+    this.eventListeners.clear();
     this.connectionPromise = null;
     this.transactionPromise = null;
     this.signDataPromise = null;
+  }
+
+  /**
+   * Get current network
+   */
+  getNetwork(): Network {
+    return this.config.network;
+  }
+
+  /**
+   * Set network (mainnet/testnet)
+   */
+  setNetwork(network: Network): void {
+    if (network !== 'mainnet' && network !== 'testnet') {
+      throw new TonConnectError('Network must be either "mainnet" or "testnet"');
+    }
+
+    const oldNetwork = this.config.network;
+    
+    // Warn if switching network while connected (wallet connection is network-specific)
+    if (this.currentStatus.connected && oldNetwork !== network) {
+      console.warn(
+        '[TON Connect] Network changed while wallet is connected. ' +
+        'The wallet connection may be invalid for the new network. ' +
+        'Consider disconnecting and reconnecting after network change.'
+      );
+    }
+
+    this.config.network = network;
+
+    // Update TON API endpoint if not explicitly set
+    if (!this.config.tonApiEndpoint || this.config.tonApiEndpoint.includes(oldNetwork)) {
+      this.config.tonApiEndpoint =
+        network === 'testnet'
+          ? 'https://testnet.toncenter.com/api/v2'
+          : 'https://toncenter.com/api/v2';
+    }
+
+    console.log('[TON Connect] Network changed to:', network);
+    
+    // Notify status change to update chain ID in React components
+    this.notifyStatusChange();
+  }
+
+  /**
+   * Get wallet balance
+   */
+  async getBalance(address?: string): Promise<BalanceResponse> {
+    const targetAddress = address || this.currentStatus.wallet?.address;
+    if (!targetAddress) {
+      throw new TonConnectError('Address is required. Either connect a wallet or provide an address.');
+    }
+
+    // Validate address format
+    if (!/^[0-9A-Za-z_-]{48}$/.test(targetAddress)) {
+      throw new TonConnectError('Invalid TON address format');
+    }
+
+    try {
+      const apiEndpoint = this.config.tonApiEndpoint || 
+        (this.config.network === 'testnet'
+          ? 'https://testnet.toncenter.com/api/v2'
+          : 'https://toncenter.com/api/v2');
+
+      const url = `${apiEndpoint}/getAddressInformation?address=${encodeURIComponent(targetAddress)}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new TonConnectError(`Failed to fetch balance: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.ok === false) {
+        throw new TonConnectError(data.error || 'Failed to fetch balance');
+      }
+
+      // TON Center API returns balance in nanotons
+      const balance = data.result?.balance || '0';
+      const balanceTon = (BigInt(balance) / BigInt(1000000000)).toString() + '.' + 
+        (BigInt(balance) % BigInt(1000000000)).toString().padStart(9, '0').replace(/0+$/, '');
+
+      return {
+        balance,
+        balanceTon: balanceTon === '0.' ? '0' : balanceTon,
+        network: this.config.network,
+      };
+    } catch (error: any) {
+      if (error instanceof TonConnectError) {
+        throw error;
+      }
+      throw new TonConnectError(`Failed to get balance: ${error?.message || String(error)}`);
+    }
+  }
+
+  /**
+   * Get transaction status
+   */
+  async getTransactionStatus(boc: string, maxAttempts: number = 10, intervalMs: number = 2000): Promise<TransactionStatusResponse> {
+    if (!boc || typeof boc !== 'string' || boc.length === 0) {
+      throw new TonConnectError('Transaction BOC is required');
+    }
+
+    // Extract transaction hash from BOC (simplified - in production, you'd parse the BOC properly)
+    // For now, we'll use a polling approach with TON Center API
+    try {
+      const apiEndpoint = this.config.tonApiEndpoint || 
+        (this.config.network === 'testnet'
+          ? 'https://testnet.toncenter.com/api/v2'
+          : 'https://toncenter.com/api/v2');
+
+      // Try to get transaction info
+      // Note: This is a simplified implementation. In production, you'd need to:
+      // 1. Parse the BOC to extract transaction hash
+      // 2. Query the blockchain for transaction status
+      // 3. Handle different confirmation states
+
+      // For now, we'll return a basic status
+      // In a real implementation, you'd query the blockchain API
+      let attempts = 0;
+      let lastError: Error | null = null;
+
+      while (attempts < maxAttempts) {
+        try {
+          // This is a placeholder - you'd need to implement actual transaction lookup
+          // For now, we'll simulate checking
+          await new Promise<void>((resolve) => setTimeout(() => resolve(), intervalMs));
+
+          // In production, you would:
+          // 1. Parse BOC to get transaction hash
+          // 2. Query TON API: GET /getTransactions?address=...&limit=1
+          // 3. Check if transaction exists and is confirmed
+
+          // For now, return unknown status (as we can't parse BOC without additional libraries)
+          return {
+            status: 'unknown',
+            error: 'Transaction status checking requires BOC parsing. Please use a TON library to parse the BOC and extract the transaction hash.',
+          };
+        } catch (error: any) {
+          lastError = error;
+          attempts++;
+          if (attempts < maxAttempts) {
+            await new Promise<void>((resolve) => setTimeout(() => resolve(), intervalMs));
+          }
+        }
+      }
+
+      return {
+        status: 'failed',
+        error: lastError?.message || 'Failed to check transaction status',
+      };
+    } catch (error: any) {
+      throw new TonConnectError(`Failed to get transaction status: ${error?.message || String(error)}`);
+    }
+  }
+
+  /**
+   * Get transaction status by hash (more reliable than BOC)
+   */
+  async getTransactionStatusByHash(txHash: string, address: string): Promise<TransactionStatusResponse> {
+    if (!txHash || typeof txHash !== 'string' || txHash.length === 0) {
+      throw new TonConnectError('Transaction hash is required');
+    }
+    if (!address || typeof address !== 'string' || address.length === 0) {
+      throw new TonConnectError('Address is required');
+    }
+
+    try {
+      const apiEndpoint = this.config.tonApiEndpoint || 
+        (this.config.network === 'testnet'
+          ? 'https://testnet.toncenter.com/api/v2'
+          : 'https://toncenter.com/api/v2');
+
+      // Query transactions for the address
+      const url = `${apiEndpoint}/getTransactions?address=${encodeURIComponent(address)}&limit=100`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new TonConnectError(`Failed to fetch transactions: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.ok === false) {
+        throw new TonConnectError(data.error || 'Failed to fetch transactions');
+      }
+
+      // Search for transaction with matching hash
+      const transactions = data.result || [];
+      const transaction = transactions.find((tx: any) => 
+        tx.transaction_id?.hash === txHash || 
+        tx.transaction_id?.lt === txHash ||
+        JSON.stringify(tx.transaction_id).includes(txHash)
+      );
+
+      if (transaction) {
+        return {
+          status: 'confirmed',
+          hash: transaction.transaction_id?.hash || txHash,
+          blockNumber: transaction.transaction_id?.lt,
+        };
+      }
+
+      // Transaction not found - could be pending or failed
+      return {
+        status: 'pending',
+        hash: txHash,
+      };
+    } catch (error: any) {
+      if (error instanceof TonConnectError) {
+        throw error;
+      }
+      return {
+        status: 'failed',
+        error: error?.message || 'Failed to check transaction status',
+      };
+    }
   }
 }
 
@@ -927,4 +1331,8 @@ export class TonConnectMobile {
 export * from './types';
 export type { WalletDefinition } from './core/wallets';
 export { SUPPORTED_WALLETS, getWalletByName, getDefaultWallet, getWalletsForPlatform } from './core/wallets';
+
+// Export utilities
+export * from './utils/transactionBuilder';
+export * from './utils/retry';
 

@@ -31,7 +31,8 @@ export const SUPPORTED_WALLETS: WalletDefinition[] = [
     appName: 'Tonkeeper',
     universalLink: 'https://app.tonkeeper.com/ton-connect',
     deepLink: 'tonkeeper://',
-    platforms: ['ios', 'android'],
+    iconUrl: 'https://tonkeeper.com/assets/tonconnect-icon.png',
+    platforms: ['ios', 'android', 'web'], // CRITICAL FIX: Tonkeeper Web is supported
     preferredReturnStrategy: 'post_redirect', // CRITICAL FIX: 'back' strategy may not send callback properly, use 'post_redirect'
     requiresReturnScheme: true, // CRITICAL FIX: Mobile apps need returnScheme for proper callback handling
   },
@@ -40,6 +41,7 @@ export const SUPPORTED_WALLETS: WalletDefinition[] = [
     appName: 'MyTonWallet',
     universalLink: 'https://connect.mytonwallet.org',
     deepLink: 'mytonwallet://',
+    iconUrl: 'https://static.mytonwallet.io/icon-256.png',
     platforms: ['ios', 'android', 'web'],
     preferredReturnStrategy: 'post_redirect',
     requiresReturnScheme: true, // MyTonWallet requires explicit returnScheme
@@ -49,6 +51,7 @@ export const SUPPORTED_WALLETS: WalletDefinition[] = [
     appName: 'Wallet',
     universalLink: 'https://wallet.tonapi.io/ton-connect',
     deepLink: 'tg://',
+    iconUrl: 'https://wallet.tonapi.io/icon.png',
     platforms: ['ios', 'android'],
     preferredReturnStrategy: 'post_redirect',
     requiresReturnScheme: true, // Telegram Wallet requires explicit returnScheme
@@ -58,6 +61,7 @@ export const SUPPORTED_WALLETS: WalletDefinition[] = [
     appName: 'Tonhub',
     universalLink: 'https://tonhub.com/ton-connect',
     deepLink: 'tonhub://',
+    iconUrl: 'https://tonhub.com/tonconnect_logo.png',
     platforms: ['ios', 'android'],
     preferredReturnStrategy: 'post_redirect',
     requiresReturnScheme: true, // Tonhub requires explicit returnScheme for proper callback

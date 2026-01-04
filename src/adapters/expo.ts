@@ -78,14 +78,14 @@ export class ExpoAdapter implements PlatformAdapter {
         console.log('[ExpoAdapter] Skipping canOpenURL check (Android compatibility)');
       }
       
-      // CRITICAL FIX: Android'de canOpenURL() tonconnect:// protokolünü tanımayabilir
-      // Bu yüzden direkt openURL() çağırıyoruz. Eğer açılamazsa hata fırlatır.
+      // CRITICAL FIX: On Android, canOpenURL() may not recognize tonconnect:// protocol
+      // So we call openURL() directly. If it fails, it will throw an error.
       await Linking.openURL(url);
       console.log('[ExpoAdapter] URL opened successfully');
       return true;
     } catch (error: any) {
       console.error('[ExpoAdapter] Error in openURL:', error);
-      // Android'de tonconnect:// protokolü tanınmıyorsa veya cüzdan yüklü değilse hata verir
+      // On Android, if tonconnect:// protocol is not recognized or wallet is not installed, it will throw an error
       const errorMessage = error?.message || String(error);
       if (errorMessage.includes('No Activity found') || errorMessage.includes('No app found') || errorMessage.includes('Cannot open URL')) {
         throw new Error(

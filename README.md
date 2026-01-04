@@ -144,6 +144,7 @@ Access the TonConnectUI instance with all methods and features.
 ```typescript
 const tonConnectUI = useTonConnectUI();
 
+<<<<<<< HEAD
 // Connection methods:
 await tonConnectUI.connectWallet();
 await tonConnectUI.disconnect();
@@ -240,6 +241,7 @@ new TonConnectMobile(config: TonConnectMobileConfig)
 - `manifestUrl` (required): URL to your TonConnect manifest file
 - `scheme` (required): Your app's deep link scheme
 - `storageKeyPrefix` (optional): Prefix for storage keys (default: `'tonconnect_'`)
+<<<<<<< HEAD
 - `connectionTimeout` (optional): Connection timeout in ms (default: `300000` = 5 minutes)
 - `transactionTimeout` (optional): Transaction timeout in ms (default: `300000` = 5 minutes)
 - `skipCanOpenURLCheck` (optional): Skip canOpenURL check (default: `true` for Android compatibility)
@@ -284,7 +286,6 @@ const signed = await ton.signData('Hello, TON!', '1.0');
 ##### `disconnect(): Promise<void>`
 
 Disconnect from wallet.
-
 ```typescript
 await ton.disconnect();
 ```
@@ -324,6 +325,7 @@ const unsubscribe = ton.onStatusChange((status) => {
 });
 ```
 
+<<<<<<< HEAD
 ##### `getNetwork(): Network`
 
 Get current network (mainnet or testnet).
@@ -443,6 +445,20 @@ ton.removeAllListeners(); // Remove all listeners
 - iOS device or simulator
 - Web browsers (for wallets with web support like Tonkeeper Web)
 
+## Platform Support
+
+- ✅ **Android**: Full support via Expo or React Native CLI
+- ✅ **iOS**: Full support via Expo or React Native CLI  
+- ⚠️ **Web**: Deep links are not supported. The SDK will throw a clear error message if you try to use it in a web browser.
+
+**Why?** The `tonconnect://` protocol is a custom URI scheme that requires a mobile app handler. Web browsers cannot handle these custom protocols.
+
+**Testing**: To test wallet connections, use:
+- Android device or emulator
+- iOS device or simulator
+- Not web browsers
+>>>>>>> af0bd46f78c13fb8e9799027e48d4fa228a49e3c
+
 ## Configuration
 
 ### Expo Setup
@@ -510,13 +526,13 @@ The manifest URL must be accessible via HTTPS.
 
 ## Supported Wallets
 
+<<<<<<< HEAD
 - **Tonkeeper** - Full support (iOS, Android, Web)
 - **MyTonWallet** - Full support (iOS, Android, Web)
 - **Tonhub** - Full support (iOS, Android)
 - **Wallet in Telegram** - Full support (iOS, Android)
 
 **Note**: Wallet icons are automatically loaded from official sources. If an icon fails to load, a placeholder with the wallet's initial is shown.
-
 ## Migration from @tonconnect/ui-react
 
 This SDK is a drop-in replacement for `@tonconnect/ui-react` in React Native/Expo environments.
@@ -597,6 +613,7 @@ MIT
 For issues and questions:
 - GitHub Issues: [https://github.com/blaziumdev/ton-connect-mobile/issues](https://github.com/blaziumdev/ton-connect-mobile/issues)
 
+<<<<<<< HEAD
 ## New Features in v1.2.3
 
 ### 🌐 Network Switching
@@ -827,6 +844,35 @@ try {
   }
 }
 ```
+
+## Changelog
+
+### v1.2.3
+- ✅ **NEW**: Network switching - Switch between mainnet and testnet dynamically
+- ✅ **NEW**: Event emitters - Listen to connect, disconnect, transaction, and error events
+- ✅ **NEW**: Wallet balance checking - Get wallet balance via TON Center API integration
+- ✅ **NEW**: Transaction status tracking - Track transaction status with polling mechanism
+- ✅ **NEW**: Complete TonConnectUI API implementation - all features from @tonconnect/ui-react
+- ✅ **NEW**: `restoreConnection()` method - restore connection from stored session
+- ✅ **NEW**: `setWalletList()` method - customize available wallets in modal
+- ✅ **NEW**: Wallet selection modal with grid layout matching @tonconnect/ui-react design
+- ✅ **NEW**: Real wallet icons loaded from official sources
+- ✅ **NEW**: Improved web platform support (Tonkeeper Web, MyTonWallet Web)
+- ✅ **IMPROVED**: Wallet availability detection using adapter type (more reliable)
+- ✅ **IMPROVED**: All wallets shown on web platform (with availability status)
+- ✅ **IMPROVED**: Chain ID automatically updates when network changes
+- ✅ **FIXED**: Tonkeeper now correctly shows as available on web
+- ✅ **FIXED**: All Turkish comments translated to English
+
+### v1.2.0
+- ✅ **NEW**: Beautiful wallet selection modal component
+- ✅ **NEW**: Transaction builder utilities (`buildTransferTransaction`, `tonToNano`, etc.)
+- ✅ **NEW**: Retry utilities with exponential backoff
+- ✅ **NEW**: Enhanced error messages with recovery suggestions
+- ✅ **NEW**: Wallet availability checking (`isWalletAvailable`)
+- ✅ Improved wallet callback handling
+- ✅ Enhanced logging and debugging
+- ✅ Better TypeScript types
 
 ## Changelog
 

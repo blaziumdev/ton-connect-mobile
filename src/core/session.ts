@@ -34,16 +34,16 @@ export function hexToBytes(hex: string): Uint8Array {
 export function bytesToBase64(bytes: Uint8Array): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   let result = '';
-  let i = 0;
-  while (i < bytes.length) {
-    const a = bytes[i++];
-    const b = i < bytes.length ? bytes[i++] : 0;
-    const c = i < bytes.length ? bytes[i++] : 0;
+  const len = bytes.length;
+  for (let i = 0; i < len; i += 3) {
+    const a = bytes[i];
+    const b = i + 1 < len ? bytes[i + 1] : 0;
+    const c = i + 2 < len ? bytes[i + 2] : 0;
     const bitmap = (a << 16) | (b << 8) | c;
     result += chars.charAt((bitmap >> 18) & 63);
     result += chars.charAt((bitmap >> 12) & 63);
-    result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
-    result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+    result += i + 1 < len ? chars.charAt((bitmap >> 6) & 63) : '=';
+    result += i + 2 < len ? chars.charAt(bitmap & 63) : '=';
   }
   return result;
 }
